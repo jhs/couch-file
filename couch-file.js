@@ -1,4 +1,5 @@
 exports.open = open
+exports.bytes = bytes
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +13,7 @@ exports.open = open
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+var C = require('constants')
 var fs = require('fs')
 var debug = require('debug')('couch-file:couch_file')
 
@@ -20,8 +22,29 @@ function open(filename, options, callback) {
   if (typeof options == 'function')
     return open(filename, {}, options)
 
-  debug('Open with %j', options, filename)
-  fs.open(filename, 'r', function(er, fd) {
+  var mode = 0
+  if (options.create)
+    mode |= C.O_RDWR | C.O_CREAT
+  if (options.overwrite)
+    mode |= C.O_TRUNC
+
+  if (options.create || options.overwrite)
+    mode |= C.O_RDWR | C.O_APPEND
+  else
+    mode |= C.O_RDONLY
+
+  debug('Open %j with %j, mode=%j (can write: %j)', filename, options, mode, !!(mode & C.O_RDWR))
+  fs.open(filename, mode, function(er, fd) {
     callback(er, fd)
+  })
+}
+
+function bytes(fd, callback) {
+  debug('bytes in fd', fd)
+  fs.fstat(fd, function(er, stat) {
+    if (er)
+      callback(er)
+    else
+      callback(null, stat.size)
   })
 }

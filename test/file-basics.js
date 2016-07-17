@@ -16,17 +16,26 @@ var test = tap.test
 var couch_file = require('../couch-file.js')
 
 var DB = __dirname + '/db/'
+var FILENAME = __filename + '.temp'
 
 
 test('CouchDB 010-file-basics.t', function(t) {
   couch_file.open('not a real file', function(er) {
     t.equal(er && er.code, 'ENOENT', "Opening a non-existant file should return an enoent error.")
 
-  couch_file.open(DB+'empty.couch', {invalid_option:true}, function(er, fd) {
-    t.type(fd, 'number', 'Invalid flags to open are ignored')
+  couch_file.open(FILENAME+'.0', {create:true, invalid_option:true}, function(er, fd) {
+    t.ok(!er, 'Invalid flags to open are ignored')
+
+  couch_file.open(FILENAME+'.0', {create:true, overwrite:true}, function(er, fd) {
+    t.type(fd, 'number', 'Returned file descriptor is a number')
+
+  couch_file.bytes(fd, function(er, size) {
+    t.equal(size, 0, 'Newly created files have 0 bytes')
 
 
     t.end()
+  })
+  })
   })
   })
 })
