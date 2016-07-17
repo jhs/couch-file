@@ -1,0 +1,23 @@
+{
+  "name": "couch-file",
+  "version": "1.0.0",
+  "description": "CouchDB file format",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jhs/couch-file.git"
+  },
+  "keywords": [
+    "couchdb",
+    "erlang"
+  ],
+  "author": "Jason Smith <jason.h.smith@gmail.com>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/jhs/couch-file/issues"
+  },
+  "homepage": "https://github.com/jhs/couch-file#readme"
+}
