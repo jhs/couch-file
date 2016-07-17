@@ -10,6 +10,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module.exports =
-  { file: require('./couch-file.js')
-  }
+var tap = require('tap')
+var test = tap.test
+
+var couch_file = require('../couch-file.js')
+
+var DB = __dirname + '/db/'
+
+
+test('CouchDB 010-file-basics.t', function(t) {
+  couch_file.open('not a real file', function(er) {
+    t.equal(er && er.code, 'ENOENT', "Opening a non-existant file should return an enoent error.")
+
+  couch_file.open(DB+'empty.couch', {invalid_option:true}, function(er, fd) {
+    t.type(fd, 'number', 'Invalid flags to open are ignored')
+
+
+    t.end()
+  })
+  })
+})

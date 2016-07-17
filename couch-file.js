@@ -1,4 +1,5 @@
-module.exports = 
+exports.open = open
+
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,6 +12,16 @@ module.exports =
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module.exports =
-  {
-  }
+var fs = require('fs')
+var debug = require('debug')('couch-file:couch_file')
+
+
+function open(filename, options, callback) {
+  if (typeof options == 'function')
+    return open(filename, {}, options)
+
+  debug('Open with %j', options, filename)
+  fs.open(filename, 'r', function(er, fd) {
+    callback(er, fd)
+  })
+}
