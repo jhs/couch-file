@@ -22,5 +22,8 @@
   "homepage": "https://github.com/jhs/couch-file#readme",
   "devDependencies": {
     "tap": "^6.2.0"
+  },
+  "dependencies": {
+    "erlang": "^0.2.0"
   }
 }
