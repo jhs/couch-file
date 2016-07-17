@@ -19,5 +19,8 @@
   "bugs": {
     "url": "https://github.com/jhs/couch-file/issues"
   },
-  "homepage": "https://github.com/jhs/couch-file#readme"
+  "homepage": "https://github.com/jhs/couch-file#readme",
+  "devDependencies": {
+    "tap": "^6.2.0"
+  }
 }
