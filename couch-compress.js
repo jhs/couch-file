@@ -14,8 +14,21 @@ exports.compress = compress
 
 var debug = require('debug')('couch-file:couch-compress')
 var erlang = require('erlang')
+var snappy = require('snappy')
+
+
+const SNAPPY_PREFIX = 1
+const SNAPPY_PREFIX_BUF = new Buffer([SNAPPY_PREFIX])
 
 
 function compress(term, type) {
-  return erlang.term_to_binary(term)
+  var buf = erlang.term_to_binary(term)
+  if (type != 'snappy')
+    return buf
+
+  var compressed = snappy.compressSync(buf)
+  if (compressed.length < buf.length)
+    return Buffer.concat([SNAPPY_PREFIX_BUF, compressed])
+  else
+    return buf
 }
