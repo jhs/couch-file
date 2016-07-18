@@ -12,6 +12,7 @@
 
 var tap = require('tap')
 var test = tap.test
+var erlang = require('erlang')
 
 var couch_file = require('../couch-file.js')
 
@@ -23,17 +24,33 @@ test('CouchDB 010-file-basics.t', function(t) {
   couch_file.open('not a real file', function(er) {
     t.equal(er && er.code, 'ENOENT', "Opening a non-existant file should return an enoent error.")
 
-  couch_file.open(FILENAME+'.0', {create:true, invalid_option:true}, function(er, fd) {
+  couch_file.open(FILENAME+'.0', {create:true, invalid_option:true}, function(er, file) {
     t.ok(!er, 'Invalid flags to open are ignored')
 
-  couch_file.open(FILENAME+'.0', {create:true, overwrite:true}, function(er, fd) {
-    t.type(fd, 'number', 'Returned file descriptor is a number')
+  couch_file.open(FILENAME+'.0', {create:true, overwrite:true}, function(er, file) {
+    t.type(file.fd, 'number', 'Returned file has a file descriptor')
 
-  couch_file.bytes(fd, function(er, size) {
+  file.bytes(function(er, size) {
     t.equal(size, 0, 'Newly created files have 0 bytes')
+
+  file.append_term({a:'foo'}, function(er, old_pos) {
+    t.equal(old_pos, 0, 'Appending a term returns the previous end of file position')
+    console.log('and new pos = %j', file)
+
+  file.bytes((er, size) => {
+    if (er) throw er
+    t.ok(size > 0, 'Writing a term increased the file size')
+
+  var bin = erlang.term_to_binary({b:'fancy!'})
+  file.append_binary(bin, (er, old_pos) => {
+    if (er) throw er
+    t.equal(size, old_pos, 'Appending a binary returns the current file size')
 
 
     t.end()
+  })
+  })
+  })
   })
   })
   })
