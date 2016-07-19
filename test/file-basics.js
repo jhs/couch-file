@@ -78,7 +78,26 @@ test('CouchDB 010-file-basics.t', function(t) {
     if (er) throw er
     t.same(header, {a:'hello'}, 'Reading a header succeeds')
 
+  file.append_binary(big_bin, (er, big_bin_pos2) => {
+    if (er) throw er
+  file.pread_binary(big_bin_pos2, (er, read_bin) => {
+    if (er) throw er
+    t.ok(big_bin.equals(read_bin), 'Reading a large term from a written representation succeeds 2')
+
+  // Possible bug in pread_iolist or iolist() -> append_binary
+  var m = 109
+  file.append_binary(['foo', m, new Buffer('bam')], (er, iolist_pos) => {
+    if (er) throw er
+  file.pread_iolist(iolist_pos, (er, iolist) => {
+    if (er) throw er
+    iolist = erlang.iolist_to_binary(iolist)
+    t.ok(iolist.equals(new Buffer('foombam')), 'Reading an results in a binary form of the written iolist()')
+
     t.end()
+  })
+  })
+  })
+  })
   })
   })
   })

@@ -90,7 +90,7 @@ class File {
 
   append_binary(bin, callback) {
     var self = this
-    debug('append_binary to %j', self.fd, bin)
+    debug('append_binary to %j', self.fd, bin.length)
 
     var chunk = assemble_file_chunk(bin)
     var blocks = make_blocks(self.pos % SIZE_BLOCK, chunk)
