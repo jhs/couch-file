@@ -93,7 +93,12 @@ test('CouchDB 010-file-basics.t', function(t) {
     iolist = erlang.iolist_to_binary(iolist)
     t.ok(iolist.equals(new Buffer('foombam')), 'Reading an results in a binary form of the written iolist()')
 
+  file.fsync((er) => {
+    if (er) throw er
+    t.ok(true, 'Syncing does not cause an error')
+
     t.end()
+  })
   })
   })
   })

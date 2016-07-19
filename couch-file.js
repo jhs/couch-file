@@ -187,6 +187,11 @@ class File {
       })
     }
   }
+
+  fsync(callback) {
+    debug('fsync: %s', this.fd)
+    fs.fsync(this.fd, callback)
+  }
 }
 
 
