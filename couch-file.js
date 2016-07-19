@@ -59,7 +59,7 @@ class File {
     blocks = erlang.iolist_to_buffer(blocks)
 
     var offset = 0
-    debug('Append to %j: %j', self.fd, blocks)
+    debug('Append to %j: %j bytes', self.fd, blocks.length)
     fs.write(self.fd, blocks, offset, blocks.length, function(er, written, buf) {
       if (er)
         return callback(er)
@@ -122,7 +122,7 @@ class File {
     function got_data(raw_data, next_pos) {
       var buf = erlang.iolist_to_binary(raw_data)
       var {prefix, length, data} = get_block_prefix(buf)
-      debug('pread_iolist next_pos=%j Prefix=%j Len=%j RestRawData=%j', next_pos, prefix, length, data)
+      debug('pread_iolist next_pos=%j Prefix=%j Len=%j RestRawData=%j', next_pos, prefix, length, data.length)
 
       if (prefix == 1)
         return callback(new Error(`Not implemented: md5 support`))
@@ -131,7 +131,7 @@ class File {
         if (er)
           return callback(er)
 
-        debug('  pread_iolist all data', all_data)
+        //debug('  pread_iolist all data', all_data)
         callback(null, all_data)
       })
     }
@@ -155,7 +155,7 @@ function open(filename, options, callback) {
 
 
 function make_blocks(block_offset, iolist) {
-  debug('make_blocks(%j, %j)', block_offset, iolist)
+  debug('make_blocks(%j, %j)', block_offset, iolist.length)
   if (iolist.length == 0)
     return []
   if (block_offset == 0)
@@ -182,7 +182,7 @@ function assemble_file_chunk(iolist) {
   // The most significant bit is not part of the size; it must be zeroed out, meaning no MD5.
   size &= MASK_31
   head.writeUInt32BE(size)
-  debug('assemble_file_chunk(%j) -> %j', iolist, [head, iolist])
+  //debug('assemble_file_chunk(%j) -> %j', iolist, [head, iolist])
   return [head, iolist]
 }
 
@@ -209,13 +209,13 @@ function read_raw_iolist_int(fd, pos, len, callback) {
     var new_pos = pos + total_bytes
 
     debug('read_raw_iolist_int(%j, %j, %j) -> %s bytes; new position: %j', fd, pos, len, bytes_read, new_pos)
-    debug('  raw_data = %j', raw_data)
+    //debug('  raw_data = %j', raw_data)
     callback(null, raw_data, new_pos)
   })
 }
 
 function maybe_read_more_iolist(buf, data_size, next_pos, fd, callback) {
-  debug('maybe_read_more_iolist(%j, data_size=%j, next_pos=%j, fd=%j)', buf, data_size, next_pos, fd)
+  debug('maybe_read_more_iolist(%j, data_size=%j, next_pos=%j, fd=%j)', buf.length, data_size, next_pos, fd)
   if (data_size <= buf.length)
     return callback(null, buf.slice(0, data_size))
 
@@ -247,7 +247,7 @@ function calculate_total_read_len(block_offset, final_len) {
 }
 
 function remove_block_prefixes(block_offset, buf) {
-  debug('remove_block_prefixes(%j, %j)', block_offset, buf)
+  debug('remove_block_prefixes(%j, %j)', block_offset, buf.length)
   if (buf.length == 0)
     return []
 
