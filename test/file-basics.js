@@ -97,7 +97,26 @@ test('CouchDB 010-file-basics.t', function(t) {
     if (er) throw er
     t.ok(true, 'Syncing does not cause an error')
 
+  file.truncate(size, (er) => {
+    if (er) throw er
+    t.ok(true, 'Truncating a file succeeds')
+  file.bytes((er, new_size) => {
+    if (er) throw er
+    t.equal(new_size, size, `Truncated file is back to the old length: ${size}`)
+
+  file.pread_term(0, (er, term_before_trunc) => {
+    if (er) throw er
+    t.same(term_before_trunc, {a:'foo'}, 'Truncating does not affect data located before the truncation mark')
+
+  file.close((er) => {
+    if (er) throw er
+    t.ok(!er, 'Files close properly')
+
     t.end()
+  })
+  })
+  })
+  })
   })
   })
   })

@@ -192,6 +192,23 @@ class File {
     debug('fsync: %s', this.fd)
     fs.fsync(this.fd, callback)
   }
+
+  truncate(new_pos, callback) {
+    var self = this
+    debug('truncate %s to size: %s', self.fd, new_pos)
+    fs.ftruncate(self.fd, new_pos, (er) => {
+      if (er)
+        return callback(er)
+
+      self.pos = new_pos
+      callback(null)
+    })
+  }
+
+  close(callback) {
+    debug('close: %s', this.fd)
+    fs.close(this.fd, callback)
+  }
 }
 
 
