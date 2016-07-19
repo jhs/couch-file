@@ -72,7 +72,15 @@ test('CouchDB 010-file-basics.t', function(t) {
     if (er) throw er
     t.ok(big_bin.equals(read_bin), 'Reading a large term from a written representation succeeds')
 
+  file.write_header({a:'hello'}, (er) => {
+    if (er) throw er
+  file.read_header((er, header) => {
+    if (er) throw er
+    t.same(header, {a:'hello'}, 'Reading a header succeeds')
+
     t.end()
+  })
+  })
   })
   })
   })

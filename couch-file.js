@@ -16,6 +16,7 @@ var C = require('constants')
 var fs = require('fs')
 var debug = require('debug')('couch-file:couch-file')
 var erlang = require('erlang')
+var crypto = require('crypto')
 
 var couch_compress = require('./couch-compress.js')
 
@@ -44,6 +45,43 @@ class File {
     })
   }
 
+  write_header(term, callback) {
+    debug('write_header: %j', term)
+    var self = this
+    var bin = erlang.term_to_binary(term)
+    var md5 = hash(bin, 'md5')
+
+    // Now we assemble the final header binary and write to disk.
+    var data_bin = Buffer.concat([md5, bin])
+
+    var block_offset = self.pos % SIZE_BLOCK
+    if (block_offset == 0)
+      var padding = new Buffer([])
+    else
+      var padding = Buffer.alloc(SIZE_BLOCK - block_offset, 0x00)
+
+    debug('Padding length for header: %s', padding.length)
+    var size_buf = new Buffer(4)
+    size_buf.writeUInt32BE(data_bin.length)
+    var blocks = make_blocks(5, [data_bin])
+    var final_iolist = [padding, new Buffer([0x01]), size_buf, blocks]
+    var final_bin = erlang.iolist_to_buffer(final_iolist)
+
+    debug('Append header to %j: %s bytes', self.fd, final_bin.length)
+    var offset = 0
+    fs.write(self.fd, final_bin, offset, final_bin.length, (er, written, buf) => {
+      if (er)
+        return callback(er)
+      if (written != final_bin.length)
+        return callback(new Error(`Append binary to fd ${self.fd}: Only wrote ${written}/${final_bin.length} bytes`))
+
+      var old_pos = self.pos
+      self.pos += written
+      debug('Append header moved offset: %s -> %s', old_pos, self.pos)
+      callback(null)
+    })
+  }
+
   append_term(term, callback) {
     debug('append_term to %j', this.fd, term)
     var comp = couch_compress.compress(term, COMPRESSOR)
@@ -63,7 +101,6 @@ class File {
     fs.write(self.fd, blocks, offset, blocks.length, function(er, written, buf) {
       if (er)
         return callback(er)
-
       if (written != blocks.length)
         return callback(new Error(`Append binary to fd ${self.fd}: Only wrote ${written}/${blocks.length} bytes`))
 
@@ -71,6 +108,20 @@ class File {
       self.pos += blocks.length
       debug('Append binary moved offset from %s to %s', old_pos, self.pos)
       callback(null, old_pos)
+    })
+  }
+
+  read_header(callback) {
+    debug('read_header')
+    var self = this
+    var block_number = div(self.pos, SIZE_BLOCK)
+    find_header(self.fd, block_number, (er, header_bin) => {
+      if (er)
+        return callback(er)
+
+      var header = erlang.binary_to_term(header_bin)
+      debug('read_header found: %j', header)
+      callback(null, header)
     })
   }
 
@@ -263,6 +314,71 @@ function remove_block_prefixes(block_offset, buf) {
   return [data_block, remove_block_prefixes(0, rest)]
 }
 
+function find_header(fd, block, callback) {
+  if (block == -1)
+    return callback(new Error(`no_valid_header`))
+
+  load_header(fd, block, (er, bin) => {
+    if (er) {
+      debug('Retry on load_header error at block %s: %s', block, er.message)
+      return find_header(fd, block - 1, callback)
+    }
+
+    callback(null, bin)
+  })
+}
+
+function load_header(fd, block, callback) {
+  debug('load_header %s block=%j', fd, block)
+  var block_bin = new Buffer(SIZE_BLOCK)
+  var buf_offset = 0
+  var block_pos = block * SIZE_BLOCK
+  fs.read(fd, block_bin, buf_offset, SIZE_BLOCK, block_pos, (er, bytes_read) => {
+    if (er)
+      return callback(er)
+    if (block_bin[0] != 1)
+      return callback(new Error(`Block ${block} first byte is not 1: ${block_bin[0]}`))
+
+    block_bin = block_bin.slice(0, bytes_read)
+    var header_len = block_bin.readUInt32BE(1)
+    var rest_block = block_bin.slice(5)
+    var total_bytes = calculate_total_read_len(5, header_len)
+    if (total_bytes <= rest_block.length)
+      got_all_bytes(rest_block.slice(0, total_bytes))
+    else {
+      var remainder_pos = block * SIZE_BLOCK + 5 + rest_block.length
+      var remainder_size = total_bytes - rest_block.length
+      var remainder_bin = new Buffer(remainder_size)
+      debug('Follow-up read %s bytes at %s for header remainder', remainder_size, remainder_pos)
+      fs.read(fd, remainder_bin, buf_offset, remainder_size, remainder_pos, (er, bytes_read) => {
+        if (er)
+          return callback(er)
+        if (bytes_read != remainder_size)
+          return callback(new Error(`Read block remainder from ${fd} only read ${bytes_read}/${remainder_size} bytes`))
+
+        var raw_bin = Buffer.concat([rest_block, remainder])
+        got_all_bytes(raw_bin)
+      })
+    }
+  })
+
+  function got_all_bytes(raw_bin) {
+    debug('Got header binary: %s bytes', raw_bin.length)
+    raw_bin = remove_block_prefixes(5, raw_bin)
+    raw_bin = erlang.iolist_to_binary(raw_bin)
+
+    var md5_bin    = raw_bin.slice(0, 16)
+    var header_bin = raw_bin.slice(16)
+
+    var md5 = hash(header_bin, 'md5')
+    if (! md5.equals(md5_bin))
+      return callback(new Error(`Bad header checksum: ${md5_bin.toString('hex')} does not match computed hash ${md5.toString('hex')}`))
+
+    debug('load_header found %s at block %s: %s bytes', fd, block, header_bin.length)
+    callback(null, header_bin)
+  }
+}
+
 
 function get_block_prefix(buf) {
   var prefix = (buf.readUInt8(0) >> 7  )      // First bit
@@ -273,6 +389,12 @@ function get_block_prefix(buf) {
 
 function div(a, b) {
   return Math.floor(a / b)
+}
+
+function hash(buf, algorithm) {
+  var h = crypto.createHash(algorithm)
+  h.update(buf)
+  return h.digest()
 }
 
 function opts_to_mode(options) {
