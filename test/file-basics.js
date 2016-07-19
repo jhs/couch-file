@@ -15,6 +15,7 @@ var test = tap.test
 var erlang = require('erlang')
 
 var couch_file = require('../couch-file.js')
+var couch_compress = require('../couch-compress.js')
 
 var DB = __dirname + '/db/'
 var FILENAME = __filename + '.temp'
@@ -54,7 +55,12 @@ test('CouchDB 010-file-basics.t', function(t) {
     if (er) throw er
     t.same(bin, erlang.term_to_binary({b:'fancy!'}), 'Reading back the binary returns what we wrote: <<"fancy!">>')
 
+  file.pread_binary(0, (er, bin) => {
+    if (er) throw er
+    t.same(bin, couch_compress.compress({a:'foo'}, 'snappy'), 'Reading a binary at a term position returns the term as binary')
+
     t.end()
+  })
   })
   })
   })
