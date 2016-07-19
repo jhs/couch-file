@@ -38,10 +38,12 @@ function compress(term, type) {
 
 function decompress(buf) {
   var type = buf[0]
-  if (type == SNAPPY_PREFIX)
+  if (type == SNAPPY_PREFIX) {
+    debug('decompress: snappy buffer; length: %s', buf.length)
     return snappy.decompressSync(buf.slice(1))
-  else if (type == TERM_PREFIX)
+  } else if (type == TERM_PREFIX) {
+    debug('decompress: Erlang term; length: %s', buf.length)
     return erlang.binary_to_term(buf)
-  else
+  } else
     throw new Error(`Unknown buffer type to decompress: ${type}`)
 }
