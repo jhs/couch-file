@@ -34,20 +34,25 @@ test('CouchDB 010-file-basics.t', function(t) {
     t.equal(size, 0, 'Newly created files have 0 bytes')
 
   file.append_term({a:'foo'}, function(er, old_pos) {
+    if (er) throw er
     t.equal(old_pos, 0, 'Appending a term returns the previous end of file position')
     console.log('and new pos = %j', file)
 
   file.bytes((er, size) => {
     if (er) throw er
-    t.ok(size > 0, 'Writing a term increased the file size')
+    t.ok(size > 0, `Writing a term increased the file size (${size})`)
 
   var bin = erlang.term_to_binary({b:'fancy!'})
   file.append_binary(bin, (er, old_pos) => {
     if (er) throw er
     t.equal(size, old_pos, 'Appending a binary returns the current file size')
 
+  file.pread_term(0, (er, term) => {
+    if (er) throw er
+    t.same(term, {a:'foo'}, 'Reading the first term returns what we wrote: foo')
 
     t.end()
+  })
   })
   })
   })
