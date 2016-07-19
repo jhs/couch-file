@@ -59,7 +59,24 @@ test('CouchDB 010-file-basics.t', function(t) {
     if (er) throw er
     t.same(bin, couch_compress.compress({a:'foo'}, 'snappy'), 'Reading a binary at a term position returns the term as binary')
 
+  file.append_binary(new Buffer([131,100,0,3,102,111,111]), (er, bin_pos) => {
+    if (er) throw er
+  file.pread_term(bin_pos, (er, term) => {
+    if (er) throw er
+    t.same(term, {a:'foo'}, 'Reading a term from a written binary term representation succeeds')
+
+  var big_bin = Buffer.alloc(100000, 0)
+  file.append_binary(big_bin, (er, big_bin_pos) => {
+    if (er) throw er
+  file.pread_binary(big_bin_pos, (er, read_bin) => {
+    if (er) throw er
+    t.ok(big_bin.equals(read_bin), 'Reading a large term from a written representation succeeds')
+
     t.end()
+  })
+  })
+  })
+  })
   })
   })
   })
