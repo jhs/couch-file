@@ -28,54 +28,78 @@ test('CouchDB 011-file-headers.t', function(t) {
     if (er) throw er
     t.equal(size, 0, 'File should be initialized to contain zero bytes')
 
+  file.write_header({t: [{b:'some_data'}, 32]}, (er) => {
+    if (er) throw er
+    t.ok(!er, 'Writing a header succeeds')
+
+  file.bytes((er, size1) => {
+    if (er) throw er
+    t.ok(size1 > size, 'Writing a header allocates space in the file')
+
+  file.read_header((er, header) => {
+    if (er) throw er
+    t.same(header, {t:[new Buffer('some_data'), 32]}, 'Reading the header returns what we wrote')
+
+  file.write_header([{a:'foo'}, new Buffer('more')], (er) => {
+    if (er) throw er
+    t.ok(!er, 'Writing a second header succeeds')
+
+  file.bytes((er, size2) => {
+    if (er) throw er
+    t.ok(size2 > size1, 'Writing a second header allocates more space')
+
+  file.read_header((er, header2) => {
+    if (er) throw er
+    t.same(header2, [{a:'foo'}, new Buffer('more')], 'Reading the second header does not return the first header')
+
+  // Delete the second header.
+  file.truncate(size1, (er) => {
+    if (er) throw er
+  file.read_header((er, header3) => {
+    if (er) throw er
+    t.same(header3, {t: [new Buffer('some_data'), 32]}, 'Reading the header after a truncation returns a previous header')
+
+  file.write_header([{a:'foo'}, new Buffer('more')], (er) => {
+    if (er) throw er
+  file.bytes((er, rewritten_size) => {
+    if (er) throw er
+    t.equal(rewritten_size, size2, 'Rewriting the same second header returns the same second size')
+
+  // Make a big tuple.
+  var big_term = []
+  for (var i = 0; i < 5000; i++)
+    big_term.push(new Buffer('CouchDB'))
+  big_term = {t: big_term}
+
+  file.write_header(big_term, (er) => {
+    if (er) throw er
+  file.read_header((er, big_header) => {
+    if (er) throw er
+    //console.log('big header: %j', big_header)
+    t.same(big_header, big_term, 'Headers larger than the block size can be saved (COUCHDB-1319)')
+
+  file.close((er) => {
+    if (er) throw er
+
   t.end()
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
   })
   })
 })
 
 /*
-    etap:is({ok, 0}, couch_file:bytes(Fd),
-        "File should be initialized to contain zero bytes."),
-
-    etap:is(ok, couch_file:write_header(Fd, {<<"some_data">>, 32}),
-        "Writing a header succeeds."),
-
-    {ok, Size1} = couch_file:bytes(Fd),
-    etap:is_greater(Size1, 0,
-        "Writing a header allocates space in the file."),
-
-    etap:is({ok, {<<"some_data">>, 32}}, couch_file:read_header(Fd),
-        "Reading the header returns what we wrote."),
-
-    etap:is(ok, couch_file:write_header(Fd, [foo, <<"more">>]),
-        "Writing a second header succeeds."),
-
-    {ok, Size2} = couch_file:bytes(Fd),
-    etap:is_greater(Size2, Size1,
-        "Writing a second header allocates more space."),
-
-    etap:is({ok, [foo, <<"more">>]}, couch_file:read_header(Fd),
-        "Reading the second header does not return the first header."),
-
-    % Delete the second header.
-    ok = couch_file:truncate(Fd, Size1),
-
-    etap:is({ok, {<<"some_data">>, 32}}, couch_file:read_header(Fd),
-        "Reading the header after a truncation returns a previous header."),
-
-    couch_file:write_header(Fd, [foo, <<"more">>]),
-    etap:is({ok, Size2}, couch_file:bytes(Fd),
-        "Rewriting the same second header returns the same second size."),
-
-    couch_file:write_header(Fd, erlang:make_tuple(5000, <<"CouchDB">>)),
-    etap:is(
-        couch_file:read_header(Fd),
-        {ok, erlang:make_tuple(5000, <<"CouchDB">>)},
-        "Headers larger than the block size can be saved (COUCHDB-1319)"
-    ),
-
-    ok = couch_file:close(Fd),
-
     % Now for the fun stuff. Try corrupting the second header and see
     % if we recover properly.
 

@@ -46,7 +46,7 @@ class File {
   }
 
   write_header(term, callback) {
-    debug('write_header: %j', term)
+    debug('write_header')
     var self = this
     var bin = erlang.term_to_binary(term)
     var md5 = hash(bin, 'md5')
@@ -378,7 +378,7 @@ function load_header(fd, block, callback) {
         if (bytes_read != remainder_size)
           return callback(new Error(`Read block remainder from ${fd} only read ${bytes_read}/${remainder_size} bytes`))
 
-        var raw_bin = Buffer.concat([rest_block, remainder])
+        var raw_bin = Buffer.concat([rest_block, remainder_bin])
         got_all_bytes(raw_bin)
       })
     }
