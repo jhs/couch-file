@@ -88,7 +88,6 @@ test('CouchDB 011-file-headers.t', function(t) {
   // Destroy the 0x1 byte that marks a header.
   check_header_recovery(function(er, file, expect_header, header_pos) {
     if (er) throw er
-
     file.read_header((er, last_header) => {
       if (er) throw er
       t.notSame(last_header, expect_header, 'Should return a different header before corruption')
@@ -100,7 +99,69 @@ test('CouchDB 011-file-headers.t', function(t) {
     file.close((er) => {
       if (er) throw er
 
+  // Corrupt the size.
+  check_header_recovery(function(er, file, expect_header, header_pos) {
+    if (er) throw er
+    file.read_header((er, last_header) => {
+      if (er) throw er
+      t.notSame(last_header, expect_header, 'Should return a different header before corruption')
+    // +1 for 0x1 byte marker
+    fs.write(file.fd, new Buffer([10]), 0, 1, header_pos+1, (er) => {
+      if (er) throw er
+    file.read_header((er, header) => {
+      if (er) throw er
+      t.same(header, expect_header, 'Corrupting the size should read the previous header')
+    file.close((er) => {
+      if (er) throw er
+
+  // Corrupt the MD5 signature.
+  check_header_recovery(function(er, file, expect_header, header_pos) {
+    if (er) throw er
+    file.read_header((er, last_header) => {
+      if (er) throw er
+      t.notSame(last_header, expect_header, 'Should return a different header before corruption')
+    // +5 = +1 for 0x1 byte and +4 for term size
+    var bad_data = new Buffer('F01034F88D320B22')
+    fs.write(file.fd, bad_data, 0, bad_data.length, header_pos+5, (er) => {
+      if (er) throw er
+    file.read_header((er, header) => {
+      if (er) throw er
+      t.same(header, expect_header, 'Corrupting the MD5 signature should read the previous header')
+    file.close((er) => {
+      if (er) throw er
+
+  // Corrupt the data.
+  check_header_recovery(function(er, file, expect_header, header_pos) {
+    if (er) throw er
+    file.read_header((er, last_header) => {
+      if (er) throw er
+      t.notSame(last_header, expect_header, 'Should return a different header before corruption')
+    // +21 = +1 for 0x1 byte, +4 for term size, and +16 for MD5 sig.
+    var bad_data = new Buffer('some data goes here!')
+    fs.write(file.fd, bad_data, 0, bad_data.length, header_pos+21, (er) => {
+      if (er) throw er
+    file.read_header((er, header) => {
+      if (er) throw er
+      t.same(header, expect_header, 'Corrupting the header data should read the previous header')
+    file.close((er) => {
+      if (er) throw er
+
   t.end()
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
+  })
   })
   })
   })
@@ -188,38 +249,3 @@ function write_random_data(file, count, callback) {
     })
   }
 }
-
-/*
-
-    % Corrupt the size.
-    check_header_recovery(fun(CouchFd, RawFd, Expect, HeaderPos) ->
-        etap:isnt(Expect, couch_file:read_header(CouchFd),
-            "Should return a different header before corruption."),
-        % +1 for 0x1 byte marker
-        file:pwrite(RawFd, HeaderPos+1, <<10/integer>>),
-        etap:is(Expect, couch_file:read_header(CouchFd),
-            "Corrupting the size should read the previous header.")
-    end),
-
-    % Corrupt the MD5 signature
-    check_header_recovery(fun(CouchFd, RawFd, Expect, HeaderPos) ->
-        etap:isnt(Expect, couch_file:read_header(CouchFd),
-            "Should return a different header before corruption."),
-        % +5 = +1 for 0x1 byte and +4 for term size.
-        file:pwrite(RawFd, HeaderPos+5, <<"F01034F88D320B22">>),
-        etap:is(Expect, couch_file:read_header(CouchFd),
-            "Corrupting the MD5 signature should read the previous header.")
-    end),
-
-    % Corrupt the data
-    check_header_recovery(fun(CouchFd, RawFd, Expect, HeaderPos) ->
-        etap:isnt(Expect, couch_file:read_header(CouchFd),
-            "Should return a different header before corruption."),
-        % +21 = +1 for 0x1 byte, +4 for term size and +16 for MD5 sig
-        file:pwrite(RawFd, HeaderPos+21, <<"some data goes here!">>),
-        etap:is(Expect, couch_file:read_header(CouchFd),
-            "Corrupting the header data should read the previous header.")
-    end),
-
-    ok.
-*/
