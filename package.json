@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "debug": "^2.2.0",
-    "erlang": "^0.2.0",
+    "erlang": "^1.0.0",
     "snappy": "^5.0.5"
   }
 }
