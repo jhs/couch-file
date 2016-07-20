@@ -10,6 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+var fs = require('fs')
 var tap = require('tap')
 var test = tap.test
 var erlang = require('erlang')
@@ -19,6 +20,7 @@ var couch_compress = require('../couch-compress.js')
 
 var DB = __dirname + '/db/'
 var FILENAME = __filename + '.temp'
+const SIZEBLOCK = 4096 // Need to keep this in sync with couch-file.js
 
 
 test('CouchDB 011-file-headers.t', function(t) {
@@ -81,7 +83,29 @@ test('CouchDB 011-file-headers.t', function(t) {
   file.close((er) => {
     if (er) throw er
 
+  // Now for the fun stuff. Try corrupting the second header and see if we recover properly.
+
+  // Destroy the 0x1 byte that marks a header.
+  check_header_recovery(function(er, file, expect_header, header_pos) {
+    if (er) throw er
+
+    file.read_header((er, last_header) => {
+      if (er) throw er
+      t.notSame(last_header, expect_header, 'Should return a different header before corruption')
+    fs.write(file.fd, new Buffer([0x00]), 0, 1, header_pos, (er) => {
+      if (er) throw er
+    file.read_header((er, header) => {
+      if (er) throw er
+      t.same(header, expect_header, 'Corrupting the byte marker should read the previous header')
+    file.close((er) => {
+      if (er) throw er
+
   t.end()
+  })
+  })
+  })
+  })
+  })
   })
   })
   })
@@ -99,18 +123,73 @@ test('CouchDB 011-file-headers.t', function(t) {
   })
 })
 
-/*
-    % Now for the fun stuff. Try corrupting the second header and see
-    % if we recover properly.
+function check_header_recovery(callback) {
+  couch_file.open(FILENAME+'.011', {create:true, overwrite:true}, (er, file) => {
+    if (er)
+      return callback(er)
 
-    % Destroy the 0x1 byte that marks a header
-    check_header_recovery(fun(CouchFd, RawFd, Expect, HeaderPos) ->
-        etap:isnt(Expect, couch_file:read_header(CouchFd),
-            "Should return a different header before corruption."),
-        file:pwrite(RawFd, HeaderPos, <<0>>),
-        etap:is(Expect, couch_file:read_header(CouchFd),
-            "Corrupting the byte marker should read the previous header.")
-    end),
+    write_random_data(file, (er, _size) => {
+      if (er)
+        return callback(er)
+
+      var expect_header = {t:[ {a:'some_atom'}, new Buffer('a binary'), 756]}
+      file.write_header(expect_header, (er) => {
+        if (er)
+          return callback(er)
+
+        write_random_data(file, (er, header_pos) => {
+          if (er)
+            return callback(er)
+
+          file.write_header({t:[ 2342, {b:'corruption! greed!'} ]}, (er) => {
+            if (er)
+              return callback(er)
+
+            callback(null, file, expect_header, header_pos)
+          })
+        })
+      })
+    })
+  })
+}
+
+function random_uniform(size) {
+  return Math.floor(Math.random() * size)
+}
+
+function write_random_data(file, count, callback) {
+  if (!callback) {
+    callback = count
+    count = 100 + random_uniform(10000)
+  }
+
+  write_datum()
+  function write_datum() {
+    count -= 1
+    if (count == 0)
+      return done()
+
+    var choices = [{a:'foo'}, {a:'bar'}, {b:'bizzingle'}, 'bank', ['rough', {a:'stuff'}]]
+    var term = choices[random_uniform(5)]
+    file.append_term(term, (er, _pos) => {
+      if (er)
+        callback(er)
+      else
+        write_datum()
+    })
+  }
+
+  function done() {
+    file.bytes((er, bytes) => {
+      if (er)
+        return callback(er)
+      var result = (1 + Math.floor(bytes / SIZEBLOCK)) * SIZEBLOCK
+      callback(null, result)
+    })
+  }
+}
+
+/*
 
     % Corrupt the size.
     check_header_recovery(fun(CouchFd, RawFd, Expect, HeaderPos) ->
@@ -143,34 +222,4 @@ test('CouchDB 011-file-headers.t', function(t) {
     end),
 
     ok.
-
-check_header_recovery(CheckFun) ->
-    {ok, Fd} = couch_file:open(filename(), [create,overwrite]),
-    {ok, RawFd} = file:open(filename(), [read, write, raw, binary]),
-
-    {ok, _} = write_random_data(Fd),
-    ExpectHeader = {some_atom, <<"a binary">>, 756},
-    ok = couch_file:write_header(Fd, ExpectHeader),
-
-    {ok, HeaderPos} = write_random_data(Fd),
-    ok = couch_file:write_header(Fd, {2342, <<"corruption! greed!">>}),
-
-    CheckFun(Fd, RawFd, {ok, ExpectHeader}, HeaderPos),
-
-    ok = file:close(RawFd),
-    ok = couch_file:close(Fd),
-    ok.
-
-write_random_data(Fd) ->
-    write_random_data(Fd, 100 + random:uniform(1000)).
-
-write_random_data(Fd, 0) ->
-    {ok, Bytes} = couch_file:bytes(Fd),
-    {ok, (1 + Bytes div sizeblock()) * sizeblock()};
-write_random_data(Fd, N) ->
-    Choices = [foo, bar, <<"bizzingle">>, "bank", ["rough", stuff]],
-    Term = lists:nth(random:uniform(4) + 1, Choices),
-    {ok, _, _} = couch_file:append_term(Fd, Term),
-    write_random_data(Fd, N-1).
-
 */
