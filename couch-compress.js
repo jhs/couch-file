@@ -30,10 +30,10 @@ function compress(term, type) {
 
   var compressed = snappy.compressSync(buf)
   if (compressed.length < buf.length) {
-    debug('Snappy compression: ok')
+    debug('Snappy compression %s vs %s: ok', compressed.length, buf.length)
     return Buffer.concat([SNAPPY_PREFIX_BUF, compressed])
   } else {
-    debug('Snappy compression: discard')
+    debug('Snappy compression %s vs %s: discard', compressed.length, buf.length)
     return buf
   }
 }
