@@ -15,20 +15,10 @@ var test = tap.test
 var erlang = require('erlang')
 
 var couch_file = require('../couch-file.js')
+var couch_btree = require('../couch-btree.js')
 
 const FILENAME = __filename + '.temp'
 const ROWS = 250
-
-//-record(btree, {
-//    fd,
-//    root,
-//    extract_kv,
-//    assemble_kv,
-//    less,
-//    reduce,
-//    compression
-//}).
-//
 
 // @todo Determine if this number should be greater to see if the btree was
 // broken into multiple nodes. AKA "How do we appropiately detect if multiple
@@ -50,9 +40,24 @@ test('Testing shuffled keys', function(t) {
   test_kvs(t, shuffle(sorted()))
 })
 
-function test_kvs(t, keyvalues) {
-  t.ok(keyvalues, 'Just testing')
-  t.end()
+function test_kvs(t, keyvals) {
+  function reduce_fun(state, kvs) {
+    if (state == 'reduce')
+      return kvs.length
+    else if (state == 'rereduce')
+      return lists_sum(kvs)
+  }
+
+  var keys = keyvals.map(keyval => keyval.t[0])
+  couch_file.open(FILENAME, {create:true, overwrite:true}, (er, file) => {
+    if (er) throw er
+  couch_btree.open(null, file, {compression:'none'}, (er, btree) => {
+    if (er) throw er
+    t.ok(btree, 'Open the couch btree')
+
+    t.end()
+  })
+  })
 }
 
 function shuffle(list) {
@@ -66,18 +71,12 @@ function shuffle(list) {
   return list
 }
 
+function lists_sum(list) {
+  return list.reduce((sum, element) => sum + element, 0)
+}
+
 /*
 test_kvs(KeyValues) ->
-    ReduceFun = fun
-        (reduce, KVs) ->
-            length(KVs);
-        (rereduce, Reds) ->
-            lists:sum(Reds)
-    end,
-
-    Keys = [K || {K, _} <- KeyValues],
-
-    {ok, Fd} = couch_file:open(filename(), [create,overwrite]),
     {ok, Btree} = couch_btree:open(nil, Fd, [{compression, none}]),
     etap:ok(is_record(Btree, btree), "Created btree is really a btree record"),
     etap:is(Btree#btree.fd, Fd, "Btree#btree.fd is set correctly."),
