@@ -26,6 +26,24 @@ const SIZE_BLOCK = 4096
 const MASK_31    = new Buffer([0b01111111, 0b11111111, 0b11111111, 0b11111111]).readUInt32BE()
 
 
+function open(filename, options, callback) {
+  if (typeof options == 'function')
+    return open(filename, {}, options)
+
+  var mode = opts_to_mode(options)
+  var is_writable = !!(mode & C.O_RDWR)
+  debug('Open %j with %j, mode=%j (can write: %j)', filename, options, mode, is_writable)
+
+  fs.open(filename, mode, function(er, fd) {
+    if (er)
+      return callback(er)
+
+    var file = new File(fd, filename, options)
+    callback(null, file)
+  })
+}
+
+
 class File {
   constructor(fd, filename, options) {
     debug('New File: %j %j', fd, options)
@@ -210,24 +228,6 @@ class File {
     debug('close: %s', this.fd)
     fs.close(this.fd, callback)
   }
-}
-
-
-function open(filename, options, callback) {
-  if (typeof options == 'function')
-    return open(filename, {}, options)
-
-  var mode = opts_to_mode(options)
-  var is_writable = !!(mode & C.O_RDWR)
-  debug('Open %j with %j, mode=%j (can write: %j)', filename, options, mode, is_writable)
-
-  fs.open(filename, mode, function(er, fd) {
-    if (er)
-      return callback(er)
-
-    var file = new File(fd, filename, options)
-    callback(null, file)
-  })
 }
 
 
