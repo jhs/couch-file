@@ -27,10 +27,11 @@ const MASK_31    = new Buffer([0b01111111, 0b11111111, 0b11111111, 0b11111111]).
 
 
 class File {
-  constructor(fd, options) {
+  constructor(fd, filename, options) {
     debug('New File: %j %j', fd, options)
     this.fd = fd
     this.pos = 0
+    this.filename = filename
   }
 
   bytes(callback) {
@@ -221,8 +222,11 @@ function open(filename, options, callback) {
   debug('Open %j with %j, mode=%j (can write: %j)', filename, options, mode, is_writable)
 
   fs.open(filename, mode, function(er, fd) {
-    var file = new File(fd, options)
-    callback(er, file)
+    if (er)
+      return callback(er)
+
+    var file = new File(fd, filename, options)
+    callback(null, file)
   })
 }
 
