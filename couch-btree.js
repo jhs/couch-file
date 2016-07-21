@@ -43,4 +43,19 @@ class Btree {
     this.reduce      = options.reduce      || null
     this.compression = options.compression || DEFAULT_COMPRESSION
   }
+
+  size(callback) {
+    var self = this
+    if (self.root === null)
+      return callback(null, 0)
+
+    callback(new Error('Size not implemented'))
+    //size(#btree{root = {_P, _Red}}) ->
+    //    % pre 1.2 format
+    //    nil;
+    //size(#btree{root = {_P, _Red, Size}}) ->
+    //    Size.
+  }
 }
+
+exports.Btree = Btree

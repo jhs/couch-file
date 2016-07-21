@@ -53,9 +53,18 @@ function test_kvs(t, keyvals) {
     if (er) throw er
   couch_btree.open(null, file, {compression:'none'}, (er, btree) => {
     if (er) throw er
+
     t.ok(btree, 'Open the couch btree')
+    t.ok(btree instanceof couch_btree.Btree, 'Created btree is really a btree record')
+    t.equal(btree.file, file, 'btree.file is set correctly')
+    t.equal(btree.root, null, 'btree.root is set correctly')
+
+  btree.size((er, size) => {
+    if (er) throw er
+    t.equal(size, 0, 'Empty btrees have a 0 size')
 
     t.end()
+  })
   })
   })
 }
@@ -77,12 +86,6 @@ function lists_sum(list) {
 
 /*
 test_kvs(KeyValues) ->
-    {ok, Btree} = couch_btree:open(nil, Fd, [{compression, none}]),
-    etap:ok(is_record(Btree, btree), "Created btree is really a btree record"),
-    etap:is(Btree#btree.fd, Fd, "Btree#btree.fd is set correctly."),
-    etap:is(Btree#btree.root, nil, "Btree#btree.root is set correctly."),
-    etap:is(0, couch_btree:size(Btree), "Empty btrees have a 0 size."),
-
     Btree1 = couch_btree:set_options(Btree, [{reduce, ReduceFun}]),
     etap:is(Btree1#btree.reduce, ReduceFun, "Reduce function was set"),
     {ok, _, EmptyRes} = couch_btree:foldl(Btree1, fun(_, X) -> {ok, X+1} end, 0),
