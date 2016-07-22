@@ -56,6 +56,63 @@ class Btree {
     //size(#btree{root = {_P, _Red, Size}}) ->
     //    Size.
   }
+
+  foldl(fun, acc, options, callback) {
+    if (!callback)
+      return this.foldl(fun, acc, {}, options)
+
+    debug('foldl')
+    this.fold(fun, acc, options, callback)
+  }
+
+  fold(fun, acc, options, callback) {
+    var self = this
+    debug('fold')
+
+    if (self.root === null)
+      return callback(null, {t:[ [],[] ]}, acc)
+
+    var dir = options.dir || 'fwd'
+    var in_range = self.make_key_in_end_range_function(dir, options)
+
+    var start_key = options.start_key
+    if (start_key === undefined)
+      self.stream_node([], self.root, in_range, dir, fun, acc, got_stream)
+    else
+      self.stream_node([], self.root, start_key, in_range, dir, fun, acc, got_stream)
+
+    function got_stream(er, result) {
+      if (er)
+        return callback(er)
+
+      if (result.ok) {
+        var full_reduction = erlang.element(2, self.root)
+        callback(null, {t:[ [], [full_reduction] ]}, result.acc)
+      } else if (result.stop) {
+        callback(null, result.last_reduction, result.acc)
+      } else
+        return callback(new Error(`Unknown stream result: ${JSON.stringify(result)}`))
+    }
+  }
+
+  make_key_in_end_range_function(dir, options) {
+    var self = this
+    var is_forward = (dir == 'fwd')
+    var end_key_gt = options.end_key_gt
+    var end_key    = options.end_key
+
+    if (typeof end_key_gt !== undefined)
+      return is_forward
+        ? function(key) { return self.less(key, end_key_gt) } // fwd
+        : function(key) { return self.less(end_key_gt, key) } // rev
+
+    if (typeof end_key !== undefined)
+      return is_forward
+        ? function(key) { return !self.less(end_key, key) } // fwd
+        : function(key) { return !self.less(key, end_key) } // rev
+
+    return function(_key) { return true }
+  }
 }
 
 exports.Btree = Btree

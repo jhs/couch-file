@@ -33,12 +33,12 @@ function sorted() {
 test('Testing sorted keys', function(t) {
   test_kvs(t, sorted())
 })
-test('Testing reversed sorted keys', function(t) {
-  test_kvs(t, sorted().reverse())
-})
-test('Testing shuffled keys', function(t) {
-  test_kvs(t, shuffle(sorted()))
-})
+//test('Testing reversed sorted keys', function(t) {
+//  test_kvs(t, sorted().reverse())
+//})
+//test('Testing shuffled keys', function(t) {
+//  test_kvs(t, shuffle(sorted()))
+//})
 
 function test_kvs(t, keyvals) {
   function reduce_fun(state, kvs) {
@@ -53,7 +53,6 @@ function test_kvs(t, keyvals) {
     if (er) throw er
   couch_btree.open(null, file, {compression:'none'}, (er, btree) => {
     if (er) throw er
-
     t.ok(btree, 'Open the couch btree')
     t.ok(btree instanceof couch_btree.Btree, 'Created btree is really a btree record')
     t.equal(btree.file, file, 'btree.file is set correctly')
@@ -63,31 +62,23 @@ function test_kvs(t, keyvals) {
     if (er) throw er
     t.equal(size, 0, 'Empty btrees have a 0 size')
 
-    t.end()
-  })
-  })
-  })
-}
+    btree.reduce = reduce_fun
+    t.same(btree.reduce, reduce_fun, 'Reduce function was set')
 
-function shuffle(list) {
-  var j, x, i
-  for (i = list.length; i; i--) {
-    j = Math.floor(Math.random() * i)
-    x = list[i - 1]
-    list[i - 1] = list[j]
-    list[j] = x
-  }
-  return list
-}
+  var func = function(_, X) { return {t:[ {a:'ok'}, X+1 ]} }
+  btree.foldl(func, 0, (er, _, empty_res) => {
+    if (er) throw er
+    t.equal(empty_res, 0, 'Folding over an empty btree')
 
-function lists_sum(list) {
-  return list.reduce((sum, element) => sum + element, 0)
+  t.end()
+  })
+  })
+  })
+  })
 }
 
 /*
 test_kvs(KeyValues) ->
-    Btree1 = couch_btree:set_options(Btree, [{reduce, ReduceFun}]),
-    etap:is(Btree1#btree.reduce, ReduceFun, "Reduce function was set"),
     {ok, _, EmptyRes} = couch_btree:foldl(Btree1, fun(_, X) -> {ok, X+1} end, 0),
     etap:is(EmptyRes, 0, "Folding over an empty btree"),
 
@@ -284,3 +275,18 @@ randomize(List) ->
     {_, D1} = lists:unzip(lists:keysort(1, D)),
     D1.
 */
+
+function shuffle(list) {
+  var j, x, i
+  for (i = list.length; i; i--) {
+    j = Math.floor(Math.random() * i)
+    x = list[i - 1]
+    list[i - 1] = list[j]
+    list[j] = x
+  }
+  return list
+}
+
+function lists_sum(list) {
+  return list.reduce((sum, element) => sum + element, 0)
+}
