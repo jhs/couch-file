@@ -35,13 +35,27 @@ function open(state, file, options, callback) {
 
 class Btree {
   constructor(state, file, options) {
-    this.root = state
+    if (state instanceof Btree)
+      this.clone(state)
+    else
+      this.init(state, file, options)
+  }
+
+  init(root, file, options) {
+    debug('Init btree')
+    this.root = root
     this.file = file
     this.extract_kv  = options.split       || function(kv) { return kv }
     this.assemble_kv = options.join        || function(key, value) { return {t:[key,value]} }
     this.less        = options.less        || function(a, b) { return a < b }
     this.reduce      = options.reduce      || null
     this.compression = options.compression || DEFAULT_COMPRESSION
+  }
+
+  clone(bt) {
+    debug('Clone btree')
+    var options = {split:bt.extract_kv, join:bt.assemle_kv, less:bt.less, reduce:bt.reduce, compression:bt.compression}
+    this.init(bt.root, bt.file, options)
   }
 
   size(callback) {
