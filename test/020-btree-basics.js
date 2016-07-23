@@ -79,9 +79,6 @@ function test_kvs(t, keyvals) {
 
 /*
 test_kvs(KeyValues) ->
-    {ok, _, EmptyRes} = couch_btree:foldl(Btree1, fun(_, X) -> {ok, X+1} end, 0),
-    etap:is(EmptyRes, 0, "Folding over an empty btree"),
-
     {ok, Btree2} = couch_btree:add_remove(Btree1, KeyValues, []),
     etap:ok(test_btree(Btree2, KeyValues),
         "Adding all keys at once returns a complete btree."),
