@@ -109,6 +109,61 @@ class Btree {
     }
   }
 
+  add(insert_keyvalues, callback) {
+    debug('add')
+    this.add_remove(insert_keyvalues, [], callback)
+  }
+
+  add_remove(insert_keyvalues, remove_keys, callback) {
+    debug('add_remove')
+    this.query_modify([], insert_keyvalues, remove_keys, (er, _, bt2) => {
+      debug('add_remove complete')
+      callback(er, bt2)
+    })
+  }
+
+  query_modify(lookup_keys, insert_values, remove_keys, callback) {
+    var self = this
+    debug('query_modify')
+
+    var insert_actions = insert_values.map(keyvalue => {
+      var kv = self.extract_kv(keyvalue)
+      return {op:'insert', key:kv.key, value:kv.value}
+    })
+    var remove_actions = remove_keys.map(key => ({op:'remove', key:key, value:null}))
+    var fetch_actions = lookup_keys.map(key => ({op:'fetch', key:key, value:null}))
+
+    // For ordering different operations with the same key. fetch < remove < insert
+    var op_order = {fetch:1, remove:2, insert:3}
+    function sortfun(A, B) {
+      if (A.key == B.key) {
+        // A and B are equal, sort by op.
+        return op_order[A.op] - op_order[B.op]
+      } else
+        return self.less(A.key, B.key)
+    }
+
+    var actions = [].concat(insert_actions, remove_actions, fetch_actions)
+    actions.sort(sortfun)
+    debug('query_modify actions: %j', actions)
+
+    self.modify_node(self.root, actions, [], (er, key_pointers, query_results) => {
+      if (er)
+        return callback(er)
+
+      debug('query_modify complete: %s key pointers', key_pointers.length)
+      self.complete_root(key_pointers, (er, new_root) => {
+        if (er)
+          return callback(er)
+
+        var result = new Btree(self)
+        result.
+        // XXX HERE
+      })
+      callback(null)
+    })
+  }
+
   make_key_in_end_range_function(dir, options) {
     var self = this
     var is_forward = (dir == 'fwd')

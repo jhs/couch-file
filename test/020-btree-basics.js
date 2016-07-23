@@ -16,6 +16,7 @@ var erlang = require('erlang')
 
 var couch_file = require('../couch-file.js')
 var couch_btree = require('../couch-btree.js')
+var Btree = couch_btree.Btree
 
 const FILENAME = __filename + '.temp'
 const ROWS = 250
@@ -26,7 +27,7 @@ const ROWS = 250
 function sorted() {
   var result = []
   for (var seq = 1; seq <= ROWS; seq++)
-    result.push({t:[ seq, Math.random() ]})
+    result.push({key:seq, value:Math.random()})
   return result
 }
 
@@ -48,7 +49,7 @@ function test_kvs(t, keyvals) {
       return lists_sum(kvs)
   }
 
-  var keys = keyvals.map(keyval => keyval.t[0])
+  var keys = keyvals.map(keyval => keyval.key)
   couch_file.open(FILENAME, {create:true, overwrite:true}, (er, file) => {
     if (er) throw er
   couch_btree.open(null, file, {compression:'none'}, (er, btree) => {
@@ -62,20 +63,37 @@ function test_kvs(t, keyvals) {
     if (er) throw er
     t.equal(size, 0, 'Empty btrees have a 0 size')
 
-    btree.reduce = reduce_fun
-    t.same(btree.reduce, reduce_fun, 'Reduce function was set')
+    var btree1 = new Btree(btree)
+    btree1.reduce = reduce_fun
+    t.same(btree1.reduce, reduce_fun, 'Reduce function was set')
 
   var func = function(_, X) { return {t:[ {a:'ok'}, X+1 ]} }
-  btree.foldl(func, 0, (er, _, empty_res) => {
+  btree1.foldl(func, 0, (er, _, empty_res) => {
     if (er) throw er
     t.equal(empty_res, 0, 'Folding over an empty btree')
 
+  btree1.add_remove(keyvals, [], (er, btree2) => {
+    if (er) throw er
+    test_btree(btree2, keyvals, (er) => {
+      if (er) throw er
+      t.ok(true, 'Adding all keys at once returns a complete btree')
+
   t.end()
-  })
-  })
-  })
-  })
-}
+  }) }) }) }) }) })
+
+  function test_btree(btree, keyvalues, callback) {
+    test_key_access(btree, keyvalues, (er) => {
+      if (er) return callback(er)
+    test_lookup_access(btree, keyvalues, (er) => {
+      if (er) return callback(er)
+    test_final_reductions(btree, keyvalues, (er) => {
+      if (er) return callback(er)
+    test_traversal_callbacks(btree, keyvalues, (er) => {
+      callback(er || null)
+
+    }) }) }) })
+  }
+} // test_kvs()
 
 /*
 test_kvs(KeyValues) ->
@@ -176,13 +194,6 @@ test_kvs(KeyValues) ->
 
     %% Third chunk (close out)
     etap:is(couch_file:close(Fd), ok, "closing out"),
-    true.
-
-test_btree(Btree, KeyValues) ->
-    ok = test_key_access(Btree, KeyValues),
-    ok = test_lookup_access(Btree, KeyValues),
-    ok = test_final_reductions(Btree, KeyValues),
-    ok = test_traversal_callbacks(Btree, KeyValues),
     true.
 
 test_add_remove(Btree, OutKeyValues, RemainingKeyValues) ->
